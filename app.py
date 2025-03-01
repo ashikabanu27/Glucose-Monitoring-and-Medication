@@ -1,55 +1,78 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import scipy.signal as signal
 import matplotlib.pyplot as plt
+import seaborn as sns
 
-# Function to load PPG Data
-def load_ppg_data(uploaded_file):
-    data = pd.read_csv(uploaded_file)
-    ppg_signal = data.iloc[:, 1].values  # Assuming PPG values are in the second column
-    return ppg_signal
+# Function to analyze blood glucose levels
+def analyze_glucose_levels(data):
+    # Ensure the dataset contains 'Glucose_level'
+    if 'Glucose_level' not in data.columns:
+        st.error("Error: The uploaded file must contain a 'Glucose_level' column.")
+        return None
 
-# Function to detect peaks (heartbeats) in PPG signal
-def detect_heart_rate(ppg_signal, fs=125):
-    peaks, _ = signal.find_peaks(ppg_signal, distance=fs//2)
-    heart_rate = len(peaks) * 60 / (len(ppg_signal) / fs)
-    return heart_rate, peaks
+    glucose_levels = data['Glucose_level'].dropna()
 
-# Function to suggest medication based on heart rate
-def suggest_medication(heart_rate):
-    if heart_rate < 60:
-        return "Bradycardia detected. Suggested: Consult a doctor for evaluation."
-    elif 60 <= heart_rate <= 100:
-        return "Normal heart rate. No medication required."
-    else:
-        return "Tachycardia detected. Suggested: Beta-blockers or consult a cardiologist."
+    if glucose_levels.empty:
+        st.warning("No glucose data found in the uploaded file.")
+        return None
 
-# Streamlit UI
-st.title("Heart Rate Monitoring from PPG Data")
+    # Define risk categories
+    risk_levels = []
+    for value in glucose_levels:
+        if value < 100:
+            risk_levels.append("Normal")
+        elif 100 <= value < 125:
+            risk_levels.append("Prediabetes")
+        else:
+            risk_levels.append("Diabetes")
 
-uploaded_file = st.file_uploader("Upload a PPG CSV File", type=["csv"])
+    # Add classification to the DataFrame
+    data['Risk Level'] = risk_levels
 
-if uploaded_file is not None:
-    st.write("File uploaded successfully!")
+    # Display data preview
+    st.subheader("📊 Data Preview with Risk Levels")
+    st.write(data[['Glucose_level', 'Risk Level']].head())
 
-    # Load PPG Data
-    ppg_signal = load_ppg_data(uploaded_file)
-
-    # Detect Heart Rate
-    heart_rate, peaks = detect_heart_rate(ppg_signal)
-
-    # Display Results
-    st.subheader("Heart Rate Analysis")
-    st.write(f"**Detected Heart Rate:** {heart_rate:.2f} BPM")
-    st.write(f"**Medication Suggestion:** {suggest_medication(heart_rate)}")
-
-    # Plot PPG Signal with Detected Peaks
-    st.subheader("PPG Signal with Detected Peaks")
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(ppg_signal, label="PPG Signal", alpha=0.7)
-    ax.scatter(peaks, ppg_signal[peaks], color='red', marker="x", label="Heartbeats")
-    ax.set_xlabel("Time (samples)")
-    ax.set_ylabel("PPG Signal Amplitude")
+    # Plot distribution
+    st.subheader("📈 Glucose Level Distribution")
+    fig, ax = plt.subplots(figsize=(8, 5))
+    sns.histplot(glucose_levels, bins=20, kde=True, ax=ax)
+    ax.axvline(100, color='yellow', linestyle='dashed', label="Prediabetes (100 mg/dL)")
+    ax.axvline(125, color='red', linestyle='dashed', label="Diabetes (125 mg/dL)")
+    ax.set_xlabel("Blood Glucose Level (mg/dL)")
+    ax.set_ylabel("Count")
     ax.legend()
     st.pyplot(fig)
+
+    # Medication suggestions
+    st.subheader("💊 Medication Suggestions")
+    suggestions = []
+    for risk, level in zip(data['Risk Level'], glucose_levels):
+        if risk == "Normal":
+            suggestions.append(f" Glucose Level: {level} mg/dL - No medication needed. Maintain a balanced diet.")
+        elif risk == "Prediabetes":
+            suggestions.append(f" Glucose Level: {level} mg/dL - Consider lifestyle changes, exercise, and diet control.")
+        else:
+            suggestions.append(f" Glucose Level: {level} mg/dL - Consult a doctor. Medications like Metformin may be recommended.")
+    
+    for suggestion in suggestions[:5]:  # Display first 5 suggestions
+        st.write(suggestion)
+
+# Streamlit UI
+st.title("🔬 Blood Glucose Level Prediction & Medication Suggestion")
+st.write("Upload your CSV file containing **PPG Signal & Glucose Levels** to analyze risk levels and get medication recommendations.")
+
+# File uploader
+uploaded_file = st.file_uploader(" Upload a CSV file", type=["csv"])
+
+if uploaded_file is not None:
+    # Load the uploaded file
+    df = pd.read_csv(uploaded_file)
+    
+    # Display first few rows
+    st.subheader("📜 Uploaded Data Preview")
+    st.write(df.head())
+
+    # Analyze glucose data
+    analyze_glucose_levels(df)
