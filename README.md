@@ -1,3 +1,3 @@
-# Heart-Rate-detection-and-Medication
+# Blood-Glucose-Monitoring-and-Medication
 
-Streamlit App Link : https://heart-rate-detection-and-medication-miswdfzdqsa4czlysxqws4.streamlit.app/
+Streamlit App Link : https://glucose-monitoring-and-medication-j9nh6bndhdgagq9r8uxwqo.streamlit.app/
